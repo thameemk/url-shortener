@@ -1,5 +1,8 @@
 use rand::Rng;
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    QueryOrder, Set,
+};
 
 use crate::models::url::{ActiveModel, Column, Entity as Url, Model};
 
@@ -46,8 +49,15 @@ pub async fn resolve_short_url(
     Ok(result.map(|m| m.long_url))
 }
 
-pub async fn list_urls(db: &DatabaseConnection) -> Result<Vec<Model>, sea_orm::DbErr> {
-    Url::find().all(db).await
+pub async fn list_urls(
+    db: &DatabaseConnection,
+    page: u64,
+    per_page: u64,
+) -> Result<(Vec<Model>, u64), sea_orm::DbErr> {
+    let paginator = Url::find().order_by_asc(Column::Id).paginate(db, per_page);
+    let total = paginator.num_items().await?;
+    let items = paginator.fetch_page(page.saturating_sub(1)).await?;
+    Ok((items, total))
 }
 
 pub async fn get_url_by_id(

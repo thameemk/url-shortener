@@ -1,13 +1,23 @@
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
-
-use super::{format_short_url, internal_error, UrlResponse};
+use super::{format_short_url, internal_error, PaginatedResponse, Pagination, UrlResponse};
 use crate::services::url_shortner::list_urls;
 use crate::state::AppState;
+use axum::{
+    extract::{Query, State},
+    http::StatusCode,
+    response::IntoResponse,
+    Json,
+};
 
-pub async fn handler(State(state): State<AppState>) -> impl IntoResponse {
-    match list_urls(&state.db).await {
-        Ok(urls) => {
-            let body: Vec<UrlResponse> = urls
+pub async fn handler(
+    State(state): State<AppState>,
+    Query(pagination): Query<Pagination>,
+) -> impl IntoResponse {
+    let page_size = pagination.page_size.clamp(1, 100);
+    let page = pagination.page.max(1);
+
+    match list_urls(&state.db, page, page_size).await {
+        Ok((urls, total)) => {
+            let results: Vec<UrlResponse> = urls
                 .into_iter()
                 .map(|m| UrlResponse {
                     short_url: format_short_url(&m.short_code),
@@ -16,6 +26,7 @@ pub async fn handler(State(state): State<AppState>) -> impl IntoResponse {
                     long_url: m.long_url,
                 })
                 .collect();
+            let body = PaginatedResponse::new(results, page, page_size, total);
             (StatusCode::OK, Json(body)).into_response()
         }
         Err(e) => internal_error(e),

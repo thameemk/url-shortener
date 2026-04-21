@@ -1,4 +1,5 @@
 mod api;
+pub mod common;
 mod redirect;
 
 use axum::{routing::get, Router};
