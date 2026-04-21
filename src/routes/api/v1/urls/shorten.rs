@@ -15,13 +15,13 @@ pub async fn handler(
     Json(body): Json<ShortenRequest>,
 ) -> impl IntoResponse {
     match create_short_url(&state.db, &body.long_url).await {
-        Ok(code) => (
+        Ok(model) => (
             StatusCode::CREATED,
             Json(UrlResponse {
-                id: 1,
-                short_url: format_short_url(&code),
-                short_code: format!("/{}", code),
-                long_url: body.long_url,
+                id: model.id,
+                short_url: format_short_url(&model.short_code),
+                short_code: format!("/{}", model.short_code),
+                long_url: model.long_url,
             }),
         )
             .into_response(),

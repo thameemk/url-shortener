@@ -14,7 +14,7 @@ fn generate_code() -> String {
 pub async fn create_short_url(
     db: &DatabaseConnection,
     long_url: &str,
-) -> Result<String, sea_orm::DbErr> {
+) -> Result<Model, sea_orm::DbErr> {
     let code = loop {
         let candidate = generate_code();
         let exists = Url::find()
@@ -28,13 +28,11 @@ pub async fn create_short_url(
     };
 
     let url = ActiveModel {
-        short_code: Set(code.clone()),
+        short_code: Set(code),
         long_url: Set(long_url.to_owned()),
         ..Default::default()
     };
-    url.insert(db).await?;
-
-    Ok(code)
+    url.insert(db).await
 }
 
 pub async fn resolve_short_url(
