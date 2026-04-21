@@ -1,5 +1,7 @@
 use rand::Rng;
-use sqlx::PgPool;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+
+use crate::models::url::{ActiveModel, Column, Entity as Url};
 
 fn generate_code() -> String {
     rand::thread_rng()
@@ -9,31 +11,39 @@ fn generate_code() -> String {
         .collect()
 }
 
-pub async fn create_short_url(db: &PgPool, long_url: &str) -> Result<String, sqlx::Error> {
+pub async fn create_short_url(
+    db: &DatabaseConnection,
+    long_url: &str,
+) -> Result<String, sea_orm::DbErr> {
     let code = loop {
         let candidate = generate_code();
-        let exists: bool =
-            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM urls WHERE short_code = $1)")
-                .bind(&candidate)
-                .fetch_one(db)
-                .await?;
+        let exists = Url::find()
+            .filter(Column::ShortCode.eq(&candidate))
+            .one(db)
+            .await?
+            .is_some();
         if !exists {
             break candidate;
         }
     };
 
-    sqlx::query("INSERT INTO urls (short_code, long_url) VALUES ($1, $2)")
-        .bind(&code)
-        .bind(long_url)
-        .execute(db)
-        .await?;
+    let url = ActiveModel {
+        short_code: Set(code.clone()),
+        long_url: Set(long_url.to_owned()),
+        ..Default::default()
+    };
+    url.insert(db).await?;
 
     Ok(code)
 }
 
-pub async fn resolve_short_url(db: &PgPool, code: &str) -> Result<Option<String>, sqlx::Error> {
-    sqlx::query_scalar("SELECT long_url FROM urls WHERE short_code = $1")
-        .bind(code)
-        .fetch_optional(db)
-        .await
+pub async fn resolve_short_url(
+    db: &DatabaseConnection,
+    code: &str,
+) -> Result<Option<String>, sea_orm::DbErr> {
+    let result = Url::find()
+        .filter(Column::ShortCode.eq(code))
+        .one(db)
+        .await?;
+    Ok(result.map(|m| m.long_url))
 }

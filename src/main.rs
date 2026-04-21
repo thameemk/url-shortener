@@ -1,8 +1,10 @@
+mod models;
 mod routes;
 mod services;
 mod state;
 
-use sqlx::postgres::PgPoolOptions;
+use migration::{Migrator, MigratorTrait};
+use sea_orm::Database;
 use tokio::net::TcpListener;
 
 use routes::create_router;
@@ -14,25 +16,15 @@ async fn main() {
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&database_url)
+    let db = Database::connect(&database_url)
         .await
         .expect("Failed to connect to PostgreSQL");
 
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS urls (
-            id SERIAL PRIMARY KEY,
-            short_code VARCHAR(10) UNIQUE NOT NULL,
-            long_url TEXT NOT NULL,
-            created_at TIMESTAMPTZ DEFAULT NOW()
-        )",
-    )
-    .execute(&pool)
-    .await
-    .expect("Failed to create urls table");
+    Migrator::up(&db, None)
+        .await
+        .expect("Failed to run migrations");
 
-    let app = create_router(AppState { db: pool });
+    let app = create_router(AppState { db });
 
     let listener = TcpListener::bind("0.0.0.0:8000")
         .await

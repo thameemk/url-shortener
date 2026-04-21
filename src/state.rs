@@ -1,6 +1,6 @@
-use sqlx::PgPool;
+use sea_orm::DatabaseConnection;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub db: PgPool,
+    pub db: DatabaseConnection,
 }
