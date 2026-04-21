@@ -11,7 +11,7 @@ use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct UpdateRequest {
-    pub url: String,
+    pub long_url: String,
 }
 
 #[derive(Serialize)]
@@ -26,7 +26,7 @@ pub async fn handler(
     Path(id): Path<i32>,
     Json(body): Json<UpdateRequest>,
 ) -> impl IntoResponse {
-    match update_url(&state.db, id, &body.url).await {
+    match update_url(&state.db, id, &body.long_url).await {
         Ok(Some(model)) => (
             StatusCode::OK,
             Json(UpdateResponse {
