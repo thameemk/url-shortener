@@ -2,15 +2,19 @@ use chrono::Utc;
 use rand::Rng;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
-    QueryOrder, Set,
+    QueryOrder, QuerySelect, Set,
 };
 
 use sea_orm::prelude::DateTimeWithTimeZone;
 
 use crate::models::url::{ActiveModel, Column, Entity as Url, Model};
+use crate::models::url_click::{
+    ActiveModel as ClickActiveModel, Column as ClickColumn, Entity as UrlClick,
+    Model as ClickModel,
+};
 
 pub enum ResolveResult {
-    Found(String),
+    Found(String, i32), // (long_url, url_id)
     NotFound,
     Expired,
 }
@@ -88,6 +92,61 @@ pub async fn create_short_url(
     Ok(url.insert(db).await?)
 }
 
+pub struct ClickRecord {
+    pub ip_address: Option<String>,
+    pub user_agent: Option<String>,
+    pub referer: Option<String>,
+}
+
+pub async fn record_click(
+    db: &DatabaseConnection,
+    url_id: i32,
+    record: ClickRecord,
+) -> Result<(), sea_orm::DbErr> {
+    ClickActiveModel {
+        url_id: Set(url_id),
+        ip_address: Set(record.ip_address),
+        user_agent: Set(record.user_agent),
+        referer: Set(record.referer),
+        ..Default::default()
+    }
+    .insert(db)
+    .await?;
+    Ok(())
+}
+
+pub struct UrlAnalytics {
+    pub total_clicks: u64,
+    pub clicks: Vec<ClickModel>,
+}
+
+pub async fn get_url_analytics(
+    db: &DatabaseConnection,
+    url_id: i32,
+    limit: u64,
+) -> Result<Option<UrlAnalytics>, sea_orm::DbErr> {
+    if Url::find_by_id(url_id).one(db).await?.is_none() {
+        return Ok(None);
+    }
+
+    let total_clicks = UrlClick::find()
+        .filter(ClickColumn::UrlId.eq(url_id))
+        .count(db)
+        .await?;
+
+    let clicks = UrlClick::find()
+        .filter(ClickColumn::UrlId.eq(url_id))
+        .order_by_desc(ClickColumn::ClickedAt)
+        .limit(limit)
+        .all(db)
+        .await?;
+
+    Ok(Some(UrlAnalytics {
+        total_clicks,
+        clicks,
+    }))
+}
+
 pub async fn resolve_short_url(
     db: &DatabaseConnection,
     code: &str,
@@ -105,7 +164,7 @@ pub async fn resolve_short_url(
                     return Ok(ResolveResult::Expired);
                 }
             }
-            Ok(ResolveResult::Found(m.long_url))
+            Ok(ResolveResult::Found(m.long_url, m.id))
         }
     }
 }

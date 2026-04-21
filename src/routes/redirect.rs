@@ -5,7 +5,7 @@ use axum::{
     Json,
 };
 
-use crate::services::url_shortner::{resolve_short_url, ResolveResult};
+use crate::services::url_shortner::{record_click, resolve_short_url, ClickRecord, ResolveResult};
 use crate::state::AppState;
 
 #[utoipa::path(
@@ -25,15 +25,36 @@ use crate::state::AppState;
 pub async fn handler(
     State(state): State<AppState>,
     Path(code): Path<String>,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     match resolve_short_url(&state.db, &code).await {
-        Ok(ResolveResult::Found(long_url)) => {
-            let mut headers = HeaderMap::new();
-            headers.insert(
+        Ok(ResolveResult::Found(long_url, url_id)) => {
+            let ip_address = headers
+                .get("x-forwarded-for")
+                .and_then(|v| v.to_str().ok())
+                .map(|s| s.split(',').next().unwrap_or(s).trim().to_owned());
+            let user_agent = headers
+                .get("user-agent")
+                .and_then(|v| v.to_str().ok())
+                .map(ToOwned::to_owned);
+            let referer = headers
+                .get("referer")
+                .and_then(|v| v.to_str().ok())
+                .map(ToOwned::to_owned);
+
+            let _ = record_click(
+                &state.db,
+                url_id,
+                ClickRecord { ip_address, user_agent, referer },
+            )
+            .await;
+
+            let mut response_headers = HeaderMap::new();
+            response_headers.insert(
                 axum::http::header::LOCATION,
                 HeaderValue::from_str(&long_url).unwrap(),
             );
-            (StatusCode::FOUND, headers).into_response()
+            (StatusCode::FOUND, response_headers).into_response()
         }
         Ok(ResolveResult::NotFound) => (
             StatusCode::NOT_FOUND,

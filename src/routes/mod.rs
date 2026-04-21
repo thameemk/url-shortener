@@ -15,12 +15,15 @@ use crate::state::AppState;
         api::v1::urls::list::handler,
         api::v1::urls::get_one::handler,
         api::v1::urls::update::handler,
+        api::v1::urls::analytics::handler,
     ),
     components(schemas(
         api::v1::urls::UrlResponse,
         api::v1::urls::UrlListResponse,
         api::v1::urls::shorten::ShortenRequest,
         api::v1::urls::update::UpdateRequest,
+        api::v1::urls::analytics::AnalyticsResponse,
+        api::v1::urls::analytics::ClickResponse,
     )),
     tags(
         (name = "Redirect", description = "Redirect short URLs to their original destination"),

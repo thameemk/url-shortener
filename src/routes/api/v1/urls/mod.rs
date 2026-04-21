@@ -1,3 +1,4 @@
+pub mod analytics;
 pub mod get_one;
 pub mod list;
 pub mod shorten;
@@ -37,4 +38,5 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/urls", get(list::handler).post(shorten::handler))
         .route("/urls/{id}", get(get_one::handler).patch(update::handler))
+        .route("/urls/{id}/analytics", get(analytics::handler))
 }
