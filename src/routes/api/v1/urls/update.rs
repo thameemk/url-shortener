@@ -8,13 +8,14 @@ use sea_orm::prelude::DateTimeWithTimeZone;
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-use super::{format_short_url, internal_error, not_found, UrlResponse};
-use crate::services::url_shortner::update_url;
+use super::{conflict, format_short_url, internal_error, not_found, UrlResponse};
+use crate::services::url_shortner::{update_url, ShortUrlError};
 use crate::state::AppState;
 
 #[derive(Deserialize, ToSchema)]
 pub struct UpdateRequest {
     pub long_url: String,
+    pub short_code: Option<String>,
     pub expires_at: Option<DateTimeWithTimeZone>,
 }
 
@@ -29,6 +30,7 @@ pub struct UpdateRequest {
     responses(
         (status = 200, description = "URL updated successfully", body = UrlResponse),
         (status = 404, description = "URL not found"),
+        (status = 409, description = "Custom short code is already taken"),
         (status = 500, description = "Internal server error"),
     )
 )]
@@ -37,7 +39,15 @@ pub async fn handler(
     Path(id): Path<i32>,
     Json(body): Json<UpdateRequest>,
 ) -> impl IntoResponse {
-    match update_url(&state.db, id, &body.long_url, body.expires_at).await {
+    match update_url(
+        &state.db,
+        id,
+        &body.long_url,
+        body.short_code.as_deref(),
+        body.expires_at,
+    )
+    .await
+    {
         Ok(Some(model)) => (
             StatusCode::OK,
             Json(UrlResponse {
@@ -50,6 +60,7 @@ pub async fn handler(
         )
             .into_response(),
         Ok(None) => not_found(),
-        Err(e) => internal_error(e),
+        Err(ShortUrlError::CodeTaken) => conflict("short code is already taken"),
+        Err(ShortUrlError::Db(e)) => internal_error(e),
     }
 }

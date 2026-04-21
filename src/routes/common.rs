@@ -51,6 +51,14 @@ pub fn internal_error(e: impl std::fmt::Display) -> Response {
         .into_response()
 }
 
+pub fn conflict(msg: impl std::fmt::Display) -> Response {
+    (
+        StatusCode::CONFLICT,
+        Json(serde_json::json!({ "error": msg.to_string() })),
+    )
+        .into_response()
+}
+
 pub fn not_found() -> Response {
     (
         StatusCode::NOT_FOUND,
