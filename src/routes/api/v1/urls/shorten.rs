@@ -42,7 +42,7 @@ pub async fn handler(
             Json(UrlResponse {
                 id: model.id,
                 short_url: format_short_url(&model.short_code),
-                short_code: format!("/{}", model.short_code),
+                short_code: model.short_code,
                 long_url: model.long_url,
                 expires_at: model.expires_at,
             }),
