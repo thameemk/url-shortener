@@ -6,7 +6,7 @@ use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct ShortenRequest {
-    pub url: String,
+    pub long_url: String,
 }
 
 #[derive(Serialize)]
@@ -20,7 +20,7 @@ pub async fn handler(
     State(state): State<AppState>,
     Json(body): Json<ShortenRequest>,
 ) -> impl IntoResponse {
-    let long_url = body.url;
+    let long_url = body.long_url;
     match create_short_url(&state.db, &long_url).await {
         Ok(code) => {
             let short_url = format!("http://localhost:8000/{}", code);
