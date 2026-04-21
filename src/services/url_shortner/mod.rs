@@ -43,7 +43,10 @@ pub async fn create_short_url(
     let url = ActiveModel {
         short_code: Set(code),
         long_url: Set(long_url.to_owned()),
-        expires_at: Set(expires_at),
+        expires_at: match expires_at {
+            Some(v) => Set(Some(v)),
+            None => sea_orm::ActiveValue::NotSet,
+        },
         ..Default::default()
     };
     url.insert(db).await

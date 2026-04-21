@@ -1,4 +1,6 @@
+use chrono::{Duration, Utc};
 use sea_orm::entity::prelude::*;
+use sea_orm::ActiveValue::NotSet;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "urls")]
@@ -15,4 +17,18 @@ pub struct Model {
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {}
 
-impl ActiveModelBehavior for ActiveModel {}
+#[async_trait::async_trait]
+impl ActiveModelBehavior for ActiveModel {
+    async fn before_save<C>(mut self, _db: &C, insert: bool) -> Result<Self, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        if insert {
+            if let NotSet = self.expires_at {
+                let default = (Utc::now() + Duration::days(10)).into();
+                self.expires_at = sea_orm::Set(Some(default));
+            }
+        }
+        Ok(self)
+    }
+}
