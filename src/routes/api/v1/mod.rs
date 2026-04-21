@@ -1,14 +1,9 @@
-mod get_one;
-mod list;
-mod shorten;
-mod update;
-
-use axum::{routing::get, Router};
+use axum::Router;
 
 use crate::state::AppState;
 
+mod urls;
+
 pub fn router() -> Router<AppState> {
-    Router::new()
-        .route("/urls", get(list::handler).post(shorten::handler))
-        .route("/urls/{id}", get(get_one::handler).patch(update::handler))
+    Router::new().merge(urls::router())
 }
