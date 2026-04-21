@@ -4,6 +4,7 @@ mod shorten;
 mod update;
 
 use axum::{routing::get, Router};
+use sea_orm::prelude::DateTimeWithTimeZone;
 use serde::Serialize;
 
 pub use crate::routes::common::{internal_error, not_found, PaginatedResponse, Pagination};
@@ -15,6 +16,7 @@ pub struct UrlResponse {
     pub short_code: String,
     pub long_url: String,
     pub short_url: String,
+    pub expires_at: Option<DateTimeWithTimeZone>,
 }
 
 pub fn format_short_url(code: &str) -> String {

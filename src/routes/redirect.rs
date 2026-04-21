@@ -5,7 +5,7 @@ use axum::{
     Json,
 };
 
-use crate::services::url_shortner::resolve_short_url;
+use crate::services::url_shortner::{resolve_short_url, ResolveResult};
 use crate::state::AppState;
 
 pub async fn handler(
@@ -13,7 +13,7 @@ pub async fn handler(
     Path(code): Path<String>,
 ) -> impl IntoResponse {
     match resolve_short_url(&state.db, &code).await {
-        Ok(Some(long_url)) => {
+        Ok(ResolveResult::Found(long_url)) => {
             let mut headers = HeaderMap::new();
             headers.insert(
                 axum::http::header::LOCATION,
@@ -21,9 +21,14 @@ pub async fn handler(
             );
             (StatusCode::FOUND, headers).into_response()
         }
-        Ok(None) => (
+        Ok(ResolveResult::NotFound) => (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({ "error": "short URL not found" })),
+        )
+            .into_response(),
+        Ok(ResolveResult::Expired) => (
+            StatusCode::GONE,
+            Json(serde_json::json!({ "error": "short URL has expired" })),
         )
             .into_response(),
         Err(e) => (

@@ -4,6 +4,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
+use sea_orm::prelude::DateTimeWithTimeZone;
 use serde::Deserialize;
 
 use super::{format_short_url, internal_error, not_found, UrlResponse};
@@ -13,6 +14,7 @@ use crate::state::AppState;
 #[derive(Deserialize)]
 pub struct UpdateRequest {
     pub long_url: String,
+    pub expires_at: Option<DateTimeWithTimeZone>,
 }
 
 pub async fn handler(
@@ -20,7 +22,7 @@ pub async fn handler(
     Path(id): Path<i32>,
     Json(body): Json<UpdateRequest>,
 ) -> impl IntoResponse {
-    match update_url(&state.db, id, &body.long_url).await {
+    match update_url(&state.db, id, &body.long_url, body.expires_at).await {
         Ok(Some(model)) => (
             StatusCode::OK,
             Json(UrlResponse {
@@ -28,6 +30,7 @@ pub async fn handler(
                 short_url: format_short_url(&model.short_code),
                 short_code: model.short_code,
                 long_url: model.long_url,
+                expires_at: model.expires_at,
             }),
         )
             .into_response(),

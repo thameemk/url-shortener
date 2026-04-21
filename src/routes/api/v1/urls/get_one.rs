@@ -18,6 +18,7 @@ pub async fn handler(State(state): State<AppState>, Path(id): Path<i32>) -> impl
                 short_url: format_short_url(&model.short_code),
                 short_code: model.short_code,
                 long_url: model.long_url,
+                expires_at: model.expires_at,
             }),
         )
             .into_response(),

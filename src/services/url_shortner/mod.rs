@@ -1,10 +1,19 @@
+use chrono::Utc;
 use rand::Rng;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
     QueryOrder, Set,
 };
 
+use sea_orm::prelude::DateTimeWithTimeZone;
+
 use crate::models::url::{ActiveModel, Column, Entity as Url, Model};
+
+pub enum ResolveResult {
+    Found(String),
+    NotFound,
+    Expired,
+}
 
 fn generate_code() -> String {
     rand::thread_rng()
@@ -17,6 +26,7 @@ fn generate_code() -> String {
 pub async fn create_short_url(
     db: &DatabaseConnection,
     long_url: &str,
+    expires_at: Option<DateTimeWithTimeZone>,
 ) -> Result<Model, sea_orm::DbErr> {
     let code = loop {
         let candidate = generate_code();
@@ -33,6 +43,7 @@ pub async fn create_short_url(
     let url = ActiveModel {
         short_code: Set(code),
         long_url: Set(long_url.to_owned()),
+        expires_at: Set(expires_at),
         ..Default::default()
     };
     url.insert(db).await
@@ -41,12 +52,23 @@ pub async fn create_short_url(
 pub async fn resolve_short_url(
     db: &DatabaseConnection,
     code: &str,
-) -> Result<Option<String>, sea_orm::DbErr> {
+) -> Result<ResolveResult, sea_orm::DbErr> {
     let result = Url::find()
         .filter(Column::ShortCode.eq(code))
         .one(db)
         .await?;
-    Ok(result.map(|m| m.long_url))
+
+    match result {
+        None => Ok(ResolveResult::NotFound),
+        Some(m) => {
+            if let Some(expires_at) = m.expires_at {
+                if expires_at.with_timezone(&Utc) <= Utc::now() {
+                    return Ok(ResolveResult::Expired);
+                }
+            }
+            Ok(ResolveResult::Found(m.long_url))
+        }
+    }
 }
 
 pub async fn list_urls(
@@ -71,6 +93,7 @@ pub async fn update_url(
     db: &DatabaseConnection,
     id: i32,
     long_url: &str,
+    expires_at: Option<DateTimeWithTimeZone>,
 ) -> Result<Option<Model>, sea_orm::DbErr> {
     let existing = Url::find_by_id(id).one(db).await?;
     match existing {
@@ -78,6 +101,7 @@ pub async fn update_url(
         Some(model) => {
             let mut active: ActiveModel = model.into();
             active.long_url = Set(long_url.to_owned());
+            active.expires_at = Set(expires_at);
             let updated = active.update(db).await?;
             Ok(Some(updated))
         }

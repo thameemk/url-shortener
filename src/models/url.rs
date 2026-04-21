@@ -9,6 +9,7 @@ pub struct Model {
     pub short_code: String,
     pub long_url: String,
     pub created_at: Option<DateTimeWithTimeZone>,
+    pub expires_at: Option<DateTimeWithTimeZone>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

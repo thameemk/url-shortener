@@ -24,6 +24,7 @@ pub async fn handler(
                     id: m.id,
                     short_code: m.short_code,
                     long_url: m.long_url,
+                    expires_at: m.expires_at,
                 })
                 .collect();
             let body = PaginatedResponse::new(results, page, page_size, total);
