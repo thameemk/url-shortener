@@ -12,16 +12,28 @@ pub struct ShortenRequest {
 #[derive(Serialize)]
 pub struct ShortenResponse {
     pub short_url: String,
+    pub short_code: String,
+    pub long_url: String,
 }
 
 pub async fn handler(
     State(state): State<AppState>,
     Json(body): Json<ShortenRequest>,
 ) -> impl IntoResponse {
-    match create_short_url(&state.db, &body.url).await {
+    let long_url = body.url;
+    match create_short_url(&state.db, &long_url).await {
         Ok(code) => {
             let short_url = format!("http://localhost:8000/{}", code);
-            (StatusCode::CREATED, Json(ShortenResponse { short_url })).into_response()
+            let short_code = format!("/{}", code);
+            (
+                StatusCode::CREATED,
+                Json(ShortenResponse {
+                    short_url,
+                    short_code,
+                    long_url,
+                }),
+            )
+                .into_response()
         }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
