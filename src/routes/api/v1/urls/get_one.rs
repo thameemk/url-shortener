@@ -9,6 +9,19 @@ use super::{format_short_url, internal_error, not_found, UrlResponse};
 use crate::services::url_shortner::get_url_by_id;
 use crate::state::AppState;
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/urls/{id}",
+    tag = "URLs",
+    params(
+        ("id" = i32, Path, description = "URL record ID")
+    ),
+    responses(
+        (status = 200, description = "URL found", body = UrlResponse),
+        (status = 404, description = "URL not found"),
+        (status = 500, description = "Internal server error"),
+    )
+)]
 pub async fn handler(State(state): State<AppState>, Path(id): Path<i32>) -> impl IntoResponse {
     match get_url_by_id(&state.db, id).await {
         Ok(Some(model)) => (

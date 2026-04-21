@@ -8,6 +8,20 @@ use axum::{
 use crate::services::url_shortner::{resolve_short_url, ResolveResult};
 use crate::state::AppState;
 
+#[utoipa::path(
+    get,
+    path = "/{code}",
+    tag = "Redirect",
+    params(
+        ("code" = String, Path, description = "Short URL code")
+    ),
+    responses(
+        (status = 302, description = "Redirects to the original URL"),
+        (status = 404, description = "Short URL not found"),
+        (status = 410, description = "Short URL has expired"),
+        (status = 500, description = "Internal server error"),
+    )
+)]
 pub async fn handler(
     State(state): State<AppState>,
     Path(code): Path<String>,

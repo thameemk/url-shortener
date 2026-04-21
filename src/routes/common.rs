@@ -4,8 +4,9 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
+use utoipa::IntoParams;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, IntoParams)]
 pub struct Pagination {
     #[serde(default = "default_page")]
     pub page: u64,

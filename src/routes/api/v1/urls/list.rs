@@ -8,6 +8,16 @@ use axum::{
     Json,
 };
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/urls",
+    tag = "URLs",
+    params(Pagination),
+    responses(
+        (status = 200, description = "Paginated list of URLs", body = UrlListResponse),
+        (status = 500, description = "Internal server error"),
+    )
+)]
 pub async fn handler(
     State(state): State<AppState>,
     Query(pagination): Query<Pagination>,

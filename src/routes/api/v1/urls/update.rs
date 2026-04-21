@@ -6,17 +6,32 @@ use axum::{
 };
 use sea_orm::prelude::DateTimeWithTimeZone;
 use serde::Deserialize;
+use utoipa::ToSchema;
 
 use super::{format_short_url, internal_error, not_found, UrlResponse};
 use crate::services::url_shortner::update_url;
 use crate::state::AppState;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct UpdateRequest {
     pub long_url: String,
     pub expires_at: Option<DateTimeWithTimeZone>,
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/v1/urls/{id}",
+    tag = "URLs",
+    params(
+        ("id" = i32, Path, description = "URL record ID")
+    ),
+    request_body = UpdateRequest,
+    responses(
+        (status = 200, description = "URL updated successfully", body = UrlResponse),
+        (status = 404, description = "URL not found"),
+        (status = 500, description = "Internal server error"),
+    )
+)]
 pub async fn handler(
     State(state): State<AppState>,
     Path(id): Path<i32>,

@@ -16,3 +16,4 @@ serde_json = "1"
 rand = "0.8"
 dotenvy = "0.15"
 migration = { path = "migration" }
+utoipa = { version = "4", features = ["axum_extras", "chrono"] }
