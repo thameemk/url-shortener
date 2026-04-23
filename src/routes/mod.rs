@@ -2,10 +2,14 @@ mod api;
 pub mod common;
 pub mod redirect;
 
-use axum::{response::Html, routing::get, Json, Router};
+use axum::{middleware, response::Html, routing::get, Json, Router};
+use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 
-use crate::state::AppState;
+use crate::{
+    middleware::rate_limit::{new_rate_limiter, rate_limit_middleware},
+    state::AppState,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -59,11 +63,25 @@ async fn scalar_ui() -> Html<&'static str> {
 }
 
 pub fn create_router(state: AppState) -> Router {
+    // Stricter limit for API mutation/read endpoints; redirect gets the global limit only.
+    let api_limiter = new_rate_limiter(30);
+    let global_limiter = new_rate_limiter(100);
+
+    let api_routes = api::router().layer(middleware::from_fn(move |req, next| {
+        let limiter = api_limiter.clone();
+        async move { rate_limit_middleware(limiter, req, next).await }
+    }));
+
     Router::new()
         .route("/docs", get(scalar_ui))
         .route("/api-doc/openapi.json", get(openapi_json))
         .route("/", get(|| async { "OK" }))
         .route("/{code}", get(redirect::handler))
-        .nest("/api", api::router())
+        .nest("/api", api_routes)
+        .layer(middleware::from_fn(move |req, next| {
+            let limiter = global_limiter.clone();
+            async move { rate_limit_middleware(limiter, req, next).await }
+        }))
         .with_state(state)
+        .layer(TraceLayer::new_for_http())
 }
