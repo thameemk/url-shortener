@@ -1,3 +1,4 @@
+mod config;
 mod middleware;
 mod models;
 mod routes;
@@ -9,6 +10,7 @@ use sea_orm::Database;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
+use config::Config;
 use routes::create_router;
 use state::AppState;
 
@@ -23,9 +25,9 @@ async fn main() {
         )
         .init();
 
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let config = Config::from_env();
 
-    let db = Database::connect(&database_url)
+    let db = Database::connect(&config.database_url)
         .await
         .expect("Failed to connect to PostgreSQL");
 
@@ -33,12 +35,13 @@ async fn main() {
         .await
         .expect("Failed to run migrations");
 
-    let app = create_router(AppState { db });
+    let port = config.port;
+    let app = create_router(AppState { db, config });
 
-    let listener = TcpListener::bind("0.0.0.0:8000")
+    let listener = TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
         .expect("Failed to bind port");
-    println!("Server running on http://127.0.0.1:8000");
+    println!("Server running on http://127.0.0.1:{port}");
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),

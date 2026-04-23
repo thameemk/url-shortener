@@ -63,17 +63,8 @@ async fn scalar_ui() -> Html<&'static str> {
 }
 
 pub fn create_router(state: AppState) -> Router {
-    let api_limit: u32 = std::env::var("API_RATE_LIMIT")
-        .expect("API_RATE_LIMIT must be set")
-        .parse()
-        .expect("API_RATE_LIMIT must be a valid number");
-    let global_limit: u32 = std::env::var("GLOBAL_RATE_LIMIT")
-        .expect("GLOBAL_RATE_LIMIT must be set")
-        .parse()
-        .expect("GLOBAL_RATE_LIMIT must be a valid number");
-
-    let api_limiter = new_rate_limiter(api_limit);
-    let global_limiter = new_rate_limiter(global_limit);
+    let api_limiter = new_rate_limiter(state.config.api_rate_limit);
+    let global_limiter = new_rate_limiter(state.config.global_rate_limit);
 
     let api_routes = api::router().layer(middleware::from_fn(move |req, next| {
         let limiter = api_limiter.clone();
