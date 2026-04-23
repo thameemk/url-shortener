@@ -13,7 +13,7 @@ A URL shortener backend built with Rust, Axum, SeaORM, and PostgreSQL.
 
 ## API Docs
 
-![Scalar API Docs](../assets/docs.png)
+![Scalar API Docs](../docs/readme/api-doc-scalar.png)
 
 Visit `/docs` after starting the server to explore the interactive API documentation.
 
