@@ -24,3 +24,6 @@ target/
 *.env
 
 *.DS_Store
+
+
+.idea/copilot.data.migration.*
